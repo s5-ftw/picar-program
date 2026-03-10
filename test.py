@@ -2,11 +2,11 @@ import sys
 import time
 
 import RPi.GPIO as GPIO
-import lib.PCF8591
 
-import lib
-from lib.SunFounder_Line_Follower.Line_Follower import Line_Follower
-from lib.SunFounder_PCA9685 import PCA9685, Servo
+import utils
+import utils.PCF8591
+from utils.SunFounder_Line_Follower.Line_Follower import Line_Follower
+from utils.SunFounder_PCA9685 import PCA9685, Servo
 
 # import ultrasonic_module
 
@@ -22,6 +22,7 @@ def setup():
     pwm.setup()
     pwm.frequency = 60
 
+
 def servoInstall():
     servo0 = Servo.Servo(0, bus_number=1)
     servo1 = Servo.Servo(1, bus_number=1)
@@ -29,6 +30,7 @@ def servoInstall():
     servo0.write(90)
     servo1.write(90)
     servo2.write(90)
+
 
 class UltrasonicSensor:
     def __init__(self, trig_pin, echo_pin):
@@ -69,10 +71,11 @@ class UltrasonicSensor:
 
         return distance
 
+
 servoInstall()
 
-lib.front_wheels.test()
-lib.back_wheels.test()
+utils.front_wheels.test()
+utils.back_wheels.test()
 
 try:
     sensor = UltrasonicSensor(TRIG, ECHO)
