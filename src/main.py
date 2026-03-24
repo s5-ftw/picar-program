@@ -35,7 +35,7 @@ async def socket_handler(
     websocket,
 ):
     async for message in websocket:
-        print(message)
+        print(f"Message: {message}")
         inputDict = json.loads(message)
         output = None
         if "function" in inputDict and inputDict["function"] in MESSAGE_DICT:
@@ -49,6 +49,7 @@ async def socket_handler(
 
 
 async def main():
+    print(f"Starting server on port {WEBSOCKET_PORT}")
     async with serve(socket_handler, None, WEBSOCKET_PORT):
         await asyncio.Future()  # run forever
 
