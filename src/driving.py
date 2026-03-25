@@ -1,5 +1,6 @@
 from enum import Enum
 from typing import Callable
+from Smoothing import Smoothing
 
 from api import (
     line_follower_read,
@@ -62,10 +63,23 @@ class LineFollower:
 
 
 class Avoider:
+    finished_avoid = False
+    class states(Enum):
+        BACKUP = 0
+        IDLE = 1
+        TRUN_RIGHT = 2
+        GOING_FORWARD = 3
+        RETURNING = 4
+        FIND_LINE = 5
+    
+    current_state :states
+
     def __init__(
         self,
+        smooth: Smoothing
     ):
-        pass
+        self.current_state = self.states.BACKUP
+        self.smoothing = smooth
 
     def should_avoid(
         self,
@@ -78,8 +92,57 @@ class Avoider:
 
     def avoid(
         self,
-    ):
-        pass
+    ) -> tuple[float, float]:
+        
+        self.finished_avoid = False
+
+        match self.current_state:
+            case self.states.BACKUP:
+                steer = STEER_STRAIGHT
+                speed = -SPEED_SLOW
+
+                if measure_distance() >= AVOID_DISTANCE:
+                    self.current_state = self.states.IDLE
+
+            case self.states.IDLE:
+                steer = STEER_STRAIGHT
+                speed = 0
+                if self.smoothing.get_current_speed() == 0:
+                    self.current_state = self.states.TRUN_RIGHT
+
+            case self.states.TRUN_RIGHT:
+                steer = STEER_SHARP
+                speed = SPEED_SLOW
+                # TODO: Will need to calculate what is the actual angle of the car
+                if self.smoothing.get_current_steering() >= STEER_SHARP:
+                    self.current_state = self.states.GOING_FORWARD
+
+            case self.states.GOING_FORWARD:
+                steer = STEER_STRAIGHT
+                speed = SPEED_SLOW
+                # TODO: Calculate the actual distance traveled by the car, to see if we passed the obstacle
+                self.current_state = self.states.RETURNING
+
+            case self.states.RETURNING:
+                steer = -STEER_SHARP
+                speed = SPEED_SLOW
+                # TODO: Will need to calculate what is the actual angle of the car
+                if self.smoothing.get_current_steering() <= -STEER_SHARP:
+                    self.current_state = self.states.FIND_LINE
+
+            case self.states.FIND_LINE:
+                steer = STEER_STRAIGHT
+                speed = SPEED_SLOW
+                if any(line_follower_read()):
+                    self.current_state = self.states.BACKUP
+                    self.finished_avoid = True
+
+        return (steer, speed)
+    
+    def is_finished(
+        self,
+    ) -> bool:
+        return self.finished_avoid
 
 
 class machine:
@@ -88,8 +151,9 @@ class machine:
         state: states,
     ):
         self.state = state
+        self.smoothing = Smoothing()
         self.line_follower = LineFollower()
-        self.avoider = Avoider()
+        self.avoider = Avoider(self.smoothing)
 
     def loop(
         self,
@@ -119,16 +183,19 @@ class machine:
         self,
     ) -> None:
         steer, speed = self.line_follower.reaction()
-        set_steering(str(steer))
-        set_motor_speed(str(speed))
+        set_steering(str(self.smoothing.smooth_steering(steer, speed)))
+        set_motor_speed(str(self.smoothing.smooth_speed(speed)))
         if self.avoider.should_avoid():
             self.state = states.AVOIDING
 
     def avoid_state(
         self,
     ) -> None:
-        self.avoider.avoid()
-        self.state = states.FOLLOWING
+        steer, speed = self.avoider.avoid()
+        set_steering(str(self.smoothing.smooth_steering(steer, speed)))
+        set_motor_speed(str(self.smoothing.smooth_speed(speed)))
+        if self.avoider.is_finished():
+            self.state = states.FOLLOWING
 
     def stop_state(
         self,
