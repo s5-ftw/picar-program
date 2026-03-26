@@ -6,8 +6,8 @@ from api import (
     set_motor_speed,
     set_steering,
 )
-from Smoothing import Smoothing
 from distances import Distances
+from Smoothing import Smoothing
 
 AVOID_DISTANCE = 10
 AVOID_DISTANCE_2 = 20
@@ -113,30 +113,48 @@ class Avoider:
                 steer = STEER_STRAIGHT
                 speed = 0
                 if self.smoothing.get_current_speed() == 0:
-                    self.current_state = self.states.TRUN_RIGHT
+                    self.current_state = self.states.TURN_RIGHT
                     self.distances.reset_distance()
 
             case self.states.TURN_RIGHT:
                 steer = STEER_SHARP
                 speed = SPEED_SLOW
-                
-                if self.distances.update_distance(self.smoothing.get_current_speed(), self.smoothing.get_last_delta_speed()) >= STEERING_DISTANCE:
+
+                if (
+                    self.distances.update_distance(
+                        self.smoothing.get_current_speed(),
+                        self.smoothing.get_last_delta_speed(),
+                    )
+                    >= STEERING_DISTANCE
+                ):
                     self.current_state = self.states.GOING_FORWARD
                     self.distances.reset_distance()
 
             case self.states.GOING_FORWARD:
                 steer = STEER_STRAIGHT
                 speed = SPEED_SLOW
-                
-                if self.distances.update_distance(self.smoothing.get_current_speed(), self.smoothing.get_last_delta_speed()) >= STRAIGHT_DISTANCE:
+
+                if (
+                    self.distances.update_distance(
+                        self.smoothing.get_current_speed(),
+                        self.smoothing.get_last_delta_speed(),
+                    )
+                    >= STRAIGHT_DISTANCE
+                ):
                     self.current_state = self.states.RETURNING
                     self.distances.reset_distance()
 
             case self.states.RETURNING:
                 steer = -STEER_SHARP
                 speed = SPEED_SLOW
-                
-                if self.distances.update_distance(self.smoothing.get_current_speed(), self.smoothing.get_last_delta_speed()) >= STEERING_DISTANCE*2:
+
+                if (
+                    self.distances.update_distance(
+                        self.smoothing.get_current_speed(),
+                        self.smoothing.get_last_delta_speed(),
+                    )
+                    >= STEERING_DISTANCE * 2
+                ):
                     self.current_state = self.states.FIND_LINE
 
             case self.states.FIND_LINE:
