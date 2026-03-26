@@ -1,5 +1,6 @@
 # Websocket example
 import asyncio
+import json
 from enum import Enum
 from typing import Callable
 
@@ -11,6 +12,8 @@ from api import (
     set_motor_speed,
     set_steering,
 )
+
+WEBSOCKET_PORT = 8765
 
 
 class SOCKET_MESSAGE_TYPE(Enum):
@@ -32,17 +35,22 @@ async def socket_handler(
     websocket,
 ):
     async for message in websocket:
-        message_type = int(message[0])
+        print(f"Message: {message}")
+        inputDict = json.loads(message)
         output = None
-        if message_type in MESSAGE_DICT:
-            callback = MESSAGE_DICT[message_type]["callback"]
-            output = callback(message[1:]) if callable(callback) else None
+        if "function" in inputDict and inputDict["function"] in MESSAGE_DICT:
+            callback = MESSAGE_DICT[inputDict["function"]]["callback"]
+            if "arg" in inputDict:
+                output = callback(inputDict["arg"]) if callable(callback) else None
+            else:
+                output = callback() if callable(callback) else None
         if output is not None:
             await websocket.send(str(output))
 
 
 async def main():
-    async with serve(socket_handler, None, 8765):
+    print(f"Starting server on port {WEBSOCKET_PORT}")
+    async with serve(socket_handler, None, WEBSOCKET_PORT):
         await asyncio.Future()  # run forever
 
 

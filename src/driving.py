@@ -1,0 +1,280 @@
+from enum import Enum
+
+from api import (
+    line_follower_read,
+    measure_distance,
+    set_motor_speed,
+    set_steering,
+)
+from distances import Distances
+from Smoothing import Smoothing
+
+AVOID_DISTANCE = 25
+AVOID_DISTANCE_2 = 20
+STEERING_DISTANCE = 18
+STEERING_DISTANCE_2 = 30
+STRAIGHT_DISTANCE = 25
+
+SPEED_FAST = 0.35
+SPEED_SLOW = 0.28
+
+STEER_SHARP = 1.0
+STEER_SMOOTH = 0.25
+STEER_STRAIGHT = 0.0
+
+DEFAULT_SPEED_SPEED = 0.08
+
+
+class states(Enum):
+    START = 0
+    FOLLOWING = 1
+    AVOIDING = 2
+    STOPPED = 3
+
+
+class LineFollower:
+    def __init__(
+        self,
+    ):
+        self.steer = STEER_STRAIGHT
+        self.speed: float = SPEED_FAST
+        self.stop = False
+
+    def reaction(
+        self,
+    ) -> tuple[float, float]:
+        res = line_follower_read()
+        # print(f"line follower: {res}")
+
+        if res == [1, 1, 1, 1, 1]:
+            self.stop = True
+            return (STEER_STRAIGHT, 0.0)
+
+        # get steering
+        if res[0] == 1:
+            self.steer = -STEER_SHARP
+        elif res[4] == 1:
+            self.steer = STEER_SHARP
+        elif res[1] == 1:
+            self.steer = -STEER_SMOOTH
+        elif res[3] == 1:
+            self.steer = STEER_SMOOTH
+        elif res[2] == 1:
+            self.steer = STEER_STRAIGHT
+
+        # get speed
+        if abs(self.steer) > STEER_SMOOTH:
+            self.speed = SPEED_SLOW
+        else:
+            self.speed = SPEED_FAST
+
+        return (self.steer, self.speed)
+
+
+class Avoider:
+    finished_avoid = False
+
+    class states(Enum):
+        BACKUP = 0
+        IDLE = 1
+        TURN_RIGHT = 2
+        GOING_FORWARD = 3
+        RETURNING = 4
+        FIND_LINE = 5
+        STOP_AT_OBJECT = 6
+
+    current_state: states
+
+    def __init__(self, smooth: Smoothing):
+        self.current_state = self.states.STOP_AT_OBJECT
+        self.smoothing = smooth
+        self.distances = Distances()
+
+    def should_avoid(
+        self,
+    ) -> bool:
+        distance = measure_distance()
+        if distance < AVOID_DISTANCE:
+            return True
+        else:
+            return False
+
+    def avoid(
+        self,
+    ) -> tuple[float, float]:
+
+        self.finished_avoid = False
+
+        # print(f"car state: {self.current_state.name}")
+
+        match self.current_state:
+            case self.states.STOP_AT_OBJECT:
+                self.smoothing.set_speed_speed(0.2)
+                steer = STEER_STRAIGHT
+                speed = 0
+
+                if self.smoothing.get_current_speed() == 0:
+                    self.current_state = self.states.BACKUP
+
+            case self.states.BACKUP:
+                steer = STEER_STRAIGHT
+                speed = -SPEED_SLOW
+
+                if measure_distance() >= AVOID_DISTANCE_2:
+                    self.current_state = self.states.IDLE
+
+            case self.states.IDLE:
+                steer = STEER_STRAIGHT
+                speed = 0
+                if self.smoothing.get_current_speed() == 0:
+                    self.current_state = self.states.TURN_RIGHT
+                    self.distances.reset_distance()
+
+            case self.states.TURN_RIGHT:
+                steer = STEER_SHARP
+                speed = SPEED_SLOW
+                distance = self.distances.update_distance(
+                    self.smoothing.get_current_speed(),
+                    self.smoothing.get_last_delta_speed(),
+                )
+
+                print(f"TURN RIGHT distance: {distance}")
+
+                if distance >= STEERING_DISTANCE:
+                    self.current_state = self.states.GOING_FORWARD
+                    self.distances.reset_distance()
+
+            case self.states.GOING_FORWARD:
+                steer = STEER_STRAIGHT
+                speed = SPEED_SLOW
+
+                if (
+                    self.distances.update_distance(
+                        self.smoothing.get_current_speed(),
+                        self.smoothing.get_last_delta_speed(),
+                    )
+                    >= STRAIGHT_DISTANCE
+                ):
+                    self.current_state = self.states.RETURNING
+                    self.distances.reset_distance()
+
+            case self.states.RETURNING:
+                steer = -STEER_SHARP
+                speed = SPEED_SLOW
+
+                if (
+                    self.distances.update_distance(
+                        self.smoothing.get_current_speed(),
+                        self.smoothing.get_last_delta_speed(),
+                    )
+                    >= STEERING_DISTANCE_2
+                ):
+                    self.current_state = self.states.FIND_LINE
+
+            case self.states.FIND_LINE:
+                steer = STEER_STRAIGHT
+                speed = SPEED_SLOW
+                if any(line_follower_read()):
+                    self.finished_avoid = True
+
+        return (steer, speed)
+
+    def reset(self) -> None:
+        self.smoothing.set_speed_speed(DEFAULT_SPEED_SPEED)
+        self.distances.reset_distance()
+        self.current_state = self.states.STOP_AT_OBJECT
+
+    def is_finished(
+        self,
+    ) -> bool:
+        return self.finished_avoid
+
+
+class machine:
+    def __init__(
+        self,
+        state: states,
+    ):
+        self.state = state
+        self.smoothing = Smoothing(speed_speed=DEFAULT_SPEED_SPEED)
+        self.line_follower = LineFollower()
+        self.avoider = Avoider(self.smoothing)
+
+    def loop(
+        self,
+    ):
+
+        if self.state != states.FOLLOWING:
+            # print(f"car state: {self.state.name}")
+            pass
+
+        if self.state == states.START:
+            self.start_state()
+
+        elif self.state == states.FOLLOWING:
+            self.following_state()
+
+        elif self.state == states.AVOIDING:
+            self.avoid_state()
+
+        elif self.state == states.STOPPED:
+            self.stop_state()
+
+        return
+
+    def start_state(
+        self,
+    ) -> None:
+        self.state = states.FOLLOWING
+
+    def following_state(
+        self,
+    ) -> None:
+        steer, speed = self.line_follower.reaction()
+        # print(f"steer: {steer}, speed: {speed}")
+        set_steering(self.smoothing.smooth_steering(steer, speed))
+        set_motor_speed(self.smoothing.smooth_speed(speed))
+        if self.avoider.should_avoid():
+            print("following: going to avoid")
+            self.state = states.AVOIDING
+            self.avoider.reset()
+        if self.line_follower.stop:
+            self.state = states.STOPPED
+
+    def avoid_state(
+        self,
+    ) -> None:
+        steer, speed = self.avoider.avoid()
+        # print(f"steer: {steer}, speed: {speed}")
+        set_steering(self.smoothing.smooth_steering(steer, speed))
+        set_motor_speed(self.smoothing.smooth_speed(speed))
+        if self.avoider.is_finished():
+            print("avoiding: going to follow")
+            self.state = states.FOLLOWING
+
+    def stop_state(
+        self,
+    ) -> None:
+        self.smoothing.set_speed_speed(0.2)
+        set_steering(self.smoothing.smooth_steering(STEER_STRAIGHT, 0.0))
+        set_motor_speed(self.smoothing.smooth_speed(0.0))
+        self.state = states.STOPPED
+
+
+def main():
+    car = machine(states.START)
+    while True:
+        try:
+            car.loop()
+        except KeyboardInterrupt:
+            # Code to run when Ctrl+C is pressed
+            print("\nKeyboardInterrupt caught. Performing cleanup...")
+
+            set_motor_speed(0.0)
+            set_steering(STEER_STRAIGHT)
+
+            break
+
+
+if __name__ == "__main__":
+    main()

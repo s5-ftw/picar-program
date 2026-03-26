@@ -77,6 +77,17 @@ servoInstall()
 utils.front_wheels.test()
 utils.back_wheels.test()
 
+fw = utils.front_wheels.Front_Wheels()
+
+fw.turn_straight()
+input("Wheels are straight.\nPress Enter to continue...")
+
+fw.turn_left()
+input("Wheels are left.\nPress Enter to continue...")
+
+fw.turn_right()
+input("Wheels are right.\nPress Enter to continue...")
+
 try:
     sensor = UltrasonicSensor(TRIG, ECHO)
     sensor.calibrate()
@@ -90,12 +101,21 @@ except KeyboardInterrupt:
 while True:
     try:
         print()
-        distance = sensor.measure_distance()
-        print(f"distance:{distance}cm")
+        distance = []
+        numOfTry = 25
+        med = 0
+
+        for i in range(numOfTry):
+            d = sensor.measure_distance()
+            distance.append(d)
+            time.sleep(sensor.waitTime)
+            med += d / numOfTry
+
+        print(f"distance:{med}cm")
         time.sleep(sensor.waitTime)
-        print()
-        print(f"line:{lf.read_analog()}")
-        print(f"line:{lf.read_digital()}")
+        # print()
+        # print(f"line:{lf.read_analog()}")
+        # print(f"line:{lf.read_digital()}")
         time.sleep(0.5)
     except KeyboardInterrupt:
         print("Goodbye!")
