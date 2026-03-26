@@ -39,7 +39,7 @@ class LineFollower:
         res = line_follower_read()
         # print(f"line follower: {res}")
 
-        if res == [0, 0, 0, 0, 0]:
+        if res == [1, 1, 1, 1, 1]:
             self.stop = True
             return (STEER_STRAIGHT, 0.0)
 
@@ -108,9 +108,9 @@ class Avoider:
                 steer = STEER_STRAIGHT
                 speed = 0
                 if self.smoothing.get_current_speed() == 0:
-                    self.current_state = self.states.TRUN_RIGHT
+                    self.current_state = self.states.TURN_RIGHT
 
-            case self.states.TRUN_RIGHT:
+            case self.states.TURN_RIGHT:
                 steer = STEER_SHARP
                 speed = SPEED_SLOW
                 # TODO: Will need to calculate what is the actual angle of the car
@@ -219,7 +219,10 @@ def main():
         except KeyboardInterrupt:
             # Code to run when Ctrl+C is pressed
             print("\nKeyboardInterrupt caught. Performing cleanup...")
-            car.stop_state()
+
+            set_motor_speed(0.0)
+            set_steering(STEER_STRAIGHT)
+
             break
 
 
