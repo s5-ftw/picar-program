@@ -70,7 +70,7 @@ class Avoider:
     class states(Enum):
         BACKUP = 0
         IDLE = 1
-        TRUN_RIGHT = 2
+        TURN_RIGHT = 2
         GOING_FORWARD = 3
         RETURNING = 4
         FIND_LINE = 5
