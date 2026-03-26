@@ -92,8 +92,13 @@ def set_steering(*args) -> None:
 
 def set_motor_speed(*args) -> None:
     """Set the motor speed (-100 to 100) based on the input value (-1 to 1)."""
-    speedArg: str = args[0]
+    speedArg: float = float(args[0])
     # print(f"set_motor_speed: {speedArg}")
     # print(f"set_motor_speed: {float(speedArg)}")
-    speed: int = int(float(speedArg) * 100)  # from -1 to 1 to 0 to 100
+    if float(speedArg) < 0:
+        speedArg = abs(speedArg)
+        _back_wheel.backward()
+    else:
+        _back_wheel.forward()
+    speed: int = int(float(speedArg) * 100)  # from 0 to 1 to 0 to 100
     _back_wheel.speed = speed

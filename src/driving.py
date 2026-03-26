@@ -1,6 +1,4 @@
 from enum import Enum
-from typing import Callable
-from Smoothing import Smoothing
 
 from api import (
     line_follower_read,
@@ -8,6 +6,7 @@ from api import (
     set_motor_speed,
     set_steering,
 )
+from Smoothing import Smoothing
 
 AVOID_DISTANCE = 10
 
@@ -38,8 +37,8 @@ class LineFollower:
         res = line_follower_read()
         # print(f"line follower: {res}")
 
-        steer = STEER_STRAIGHT
-        speed = SPEED_FAST
+        steer: float = STEER_STRAIGHT
+        speed: float = SPEED_FAST
 
         # get steering
         if res[0] == 1:
@@ -50,7 +49,7 @@ class LineFollower:
             steer = -STEER_SMOOTH
         elif res[3] == 1:
             steer = STEER_SMOOTH
-        else:
+        elif res[2] == 1:
             steer = STEER_STRAIGHT
 
         # get speed
@@ -64,6 +63,7 @@ class LineFollower:
 
 class Avoider:
     finished_avoid = False
+
     class states(Enum):
         BACKUP = 0
         IDLE = 1
@@ -71,13 +71,10 @@ class Avoider:
         GOING_FORWARD = 3
         RETURNING = 4
         FIND_LINE = 5
-    
-    current_state :states
 
-    def __init__(
-        self,
-        smooth: Smoothing
-    ):
+    current_state: states
+
+    def __init__(self, smooth: Smoothing):
         self.current_state = self.states.BACKUP
         self.smoothing = smooth
 
@@ -93,7 +90,7 @@ class Avoider:
     def avoid(
         self,
     ) -> tuple[float, float]:
-        
+
         self.finished_avoid = False
 
         match self.current_state:
@@ -138,7 +135,7 @@ class Avoider:
                     self.finished_avoid = True
 
         return (steer, speed)
-    
+
     def is_finished(
         self,
     ) -> bool:
@@ -158,7 +155,7 @@ class machine:
     def loop(
         self,
     ):
-        print(f"car state: {self.state.name}")
+        # print(f"car state: {self.state.name}")
 
         if self.state == states.START:
             self.start_state()
@@ -183,6 +180,7 @@ class machine:
         self,
     ) -> None:
         steer, speed = self.line_follower.reaction()
+        print(f"steer: {steer}, speed: {speed}")
         set_steering(str(self.smoothing.smooth_steering(steer, speed)))
         set_motor_speed(str(self.smoothing.smooth_speed(speed)))
         if self.avoider.should_avoid():
@@ -192,6 +190,7 @@ class machine:
         self,
     ) -> None:
         steer, speed = self.avoider.avoid()
+        print(f"steer: {steer}, speed: {speed}")
         set_steering(str(self.smoothing.smooth_steering(steer, speed)))
         set_motor_speed(str(self.smoothing.smooth_speed(speed)))
         if self.avoider.is_finished():

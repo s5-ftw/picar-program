@@ -72,21 +72,21 @@ class UltrasonicSensor:
         return distance
 
 
-# servoInstall()
+servoInstall()
 
-# utils.front_wheels.test()
-# utils.back_wheels.test()
+utils.front_wheels.test()
+utils.back_wheels.test()
 
-# fw = utils.front_wheels.Front_Wheels()
-# 
-# fw.turn_straight()
-# input("Wheels are straight.\nPress Enter to continue...")
-# 
-# fw.turn_left()
-# input("Wheels are left.\nPress Enter to continue...")
-# 
-# fw.turn_right()
-# input("Wheels are right.\nPress Enter to continue...")
+fw = utils.front_wheels.Front_Wheels()
+
+fw.turn_straight()
+input("Wheels are straight.\nPress Enter to continue...")
+
+fw.turn_left()
+input("Wheels are left.\nPress Enter to continue...")
+
+fw.turn_right()
+input("Wheels are right.\nPress Enter to continue...")
 
 try:
     sensor = UltrasonicSensor(TRIG, ECHO)
@@ -104,7 +104,7 @@ while True:
         distance = []
         numOfTry = 25
         med = 0
-        
+
         for i in range(numOfTry):
             d = sensor.measure_distance()
             distance.append(d)
