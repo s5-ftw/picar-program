@@ -7,8 +7,12 @@ from api import (
     set_steering,
 )
 from Smoothing import Smoothing
+from distances import Distances
 
 AVOID_DISTANCE = 10
+AVOID_DISTANCE_2 = 20
+STEERING_DISTANCE = 20
+STRAIGHT_DISTANCE = 10
 
 SPEED_FAST = 0.35
 SPEED_SLOW = 0.28
@@ -80,6 +84,7 @@ class Avoider:
     def __init__(self, smooth: Smoothing):
         self.current_state = self.states.BACKUP
         self.smoothing = smooth
+        self.distances = Distances()
 
     def should_avoid(
         self,
@@ -101,33 +106,37 @@ class Avoider:
                 steer = STEER_STRAIGHT
                 speed = -SPEED_SLOW
 
-                if measure_distance() >= AVOID_DISTANCE:
+                if measure_distance() >= AVOID_DISTANCE_2:
                     self.current_state = self.states.IDLE
 
             case self.states.IDLE:
                 steer = STEER_STRAIGHT
                 speed = 0
                 if self.smoothing.get_current_speed() == 0:
-                    self.current_state = self.states.TURN_RIGHT
+                    self.current_state = self.states.TRUN_RIGHT
+                    self.distances.reset_distance()
 
             case self.states.TURN_RIGHT:
                 steer = STEER_SHARP
                 speed = SPEED_SLOW
-                # TODO: Will need to calculate what is the actual angle of the car
-                if self.smoothing.get_current_steering() >= STEER_SHARP:
+                
+                if self.distances.update_distance(self.smoothing.get_current_speed(), self.smoothing.get_last_delta_speed()) >= STEERING_DISTANCE:
                     self.current_state = self.states.GOING_FORWARD
+                    self.distances.reset_distance()
 
             case self.states.GOING_FORWARD:
                 steer = STEER_STRAIGHT
                 speed = SPEED_SLOW
-                # TODO: Calculate the actual distance traveled by the car, to see if we passed the obstacle
-                self.current_state = self.states.RETURNING
+                
+                if self.distances.update_distance(self.smoothing.get_current_speed(), self.smoothing.get_last_delta_speed()) >= STRAIGHT_DISTANCE:
+                    self.current_state = self.states.RETURNING
+                    self.distances.reset_distance()
 
             case self.states.RETURNING:
                 steer = -STEER_SHARP
                 speed = SPEED_SLOW
-                # TODO: Will need to calculate what is the actual angle of the car
-                if self.smoothing.get_current_steering() <= -STEER_SHARP:
+                
+                if self.distances.update_distance(self.smoothing.get_current_speed(), self.smoothing.get_last_delta_speed()) >= STEERING_DISTANCE*2:
                     self.current_state = self.states.FIND_LINE
 
             case self.states.FIND_LINE:
