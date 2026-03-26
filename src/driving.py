@@ -25,13 +25,6 @@ STEER_STRAIGHT = 0.0
 DEFAULT_SPEED_SPEED = 0.08
 
 
-class states(Enum):
-    START = 0
-    FOLLOWING = 1
-    AVOIDING = 2
-    STOPPED = 3
-
-
 class LineFollower:
     def __init__(
         self,
@@ -40,13 +33,23 @@ class LineFollower:
         self.speed: float = SPEED_FAST
         self.stop = False
 
+    @staticmethod
+    def detect_t(res: list[int] | None = None) -> bool:
+
+        res = line_follower_read() if res is None
+
+        if res == [1, 1, 1, 1, 1]:
+            return True
+
+        return False
+
     def reaction(
         self,
     ) -> tuple[float, float]:
         res = line_follower_read()
         # print(f"line follower: {res}")
 
-        if res == [1, 1, 1, 1, 1]:
+        if self.detect_t(res):
             self.stop = True
             return (STEER_STRAIGHT, 0.0)
 
@@ -191,78 +194,72 @@ class Avoider:
 
 
 class machine:
-    def __init__(
-        self,
-        state: states,
-    ):
-        self.state = state
-        self.smoothing = Smoothing(speed_speed=DEFAULT_SPEED_SPEED)
+    class states(Enum):
+        START = 0
+        FOLLOWING = 1
+        AVOIDING = 2
+        STOPPED = 3
+
+    def __init__(self):
+        self.state = self.states.START
+        self.smoothing = Smoothing(speed_speed= 2.0)
         self.line_follower = LineFollower()
         self.avoider = Avoider(self.smoothing)
 
-    def loop(
-        self,
-    ):
+    def loop(self):
 
-        if self.state != states.FOLLOWING:
-            # print(f"car state: {self.state.name}")
-            pass
-
-        if self.state == states.START:
+        if self.state == self.states.START:
             self.start_state()
 
-        elif self.state == states.FOLLOWING:
+        elif self.state == self.states.FOLLOWING:
             self.following_state()
 
-        elif self.state == states.AVOIDING:
+        elif self.state == self.states.AVOIDING:
             self.avoid_state()
 
-        elif self.state == states.STOPPED:
+        elif self.state == self.states.STOPPED:
             self.stop_state()
 
         return
 
-    def start_state(
-        self,
-    ) -> None:
-        self.state = states.FOLLOWING
+    def start_state(self) -> None:
+        if self.line_follower.detect_t():
+            set_steering(self.smoothing.smooth_steering(STEER_STRAIGHT, SPEED_FAST))
+            self.smoothing.smooth_speed(SPEED_FAST)
+        else:
+            self.state = self.states.FOLLOWING
+            self.smoothing.set_speed_speed(DEFAULT_SPEED_SPEED)
 
-    def following_state(
-        self,
-    ) -> None:
+    def following_state(self) -> None:
         steer, speed = self.line_follower.reaction()
         # print(f"steer: {steer}, speed: {speed}")
         set_steering(self.smoothing.smooth_steering(steer, speed))
         set_motor_speed(self.smoothing.smooth_speed(speed))
         if self.avoider.should_avoid():
             print("following: going to avoid")
-            self.state = states.AVOIDING
+            self.state = self.states.AVOIDING
             self.avoider.reset()
         if self.line_follower.stop:
-            self.state = states.STOPPED
+            self.state = self.states.STOPPED
 
-    def avoid_state(
-        self,
-    ) -> None:
+    def avoid_state(self) -> None:
         steer, speed = self.avoider.avoid()
         # print(f"steer: {steer}, speed: {speed}")
         set_steering(self.smoothing.smooth_steering(steer, speed))
         set_motor_speed(self.smoothing.smooth_speed(speed))
         if self.avoider.is_finished():
             print("avoiding: going to follow")
-            self.state = states.FOLLOWING
+            self.state = self.states.FOLLOWING
 
-    def stop_state(
-        self,
-    ) -> None:
+    def stop_state(self) -> None:
         self.smoothing.set_speed_speed(0.2)
         set_steering(self.smoothing.smooth_steering(STEER_STRAIGHT, 0.0))
         set_motor_speed(self.smoothing.smooth_speed(0.0))
-        self.state = states.STOPPED
+        self.state = self.states.STOPPED
 
 
 def main():
-    car = machine(states.START)
+    car = machine()
     while True:
         try:
             car.loop()
