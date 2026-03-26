@@ -12,6 +12,9 @@ class Smoothing:
         self.last_delta_steering = 0.0
         self.last_delta_speed = 0.0
 
+    def set_speed_speed(self, speed_speed: float):
+        self.speed_speed = speed_speed
+
     def calculate_delta_steering(self) -> float:
         now = time.time()
         self.last_delta_steering = now - self.last_time_steering
@@ -25,7 +28,9 @@ class Smoothing:
         return self.last_delta_speed
 
     def smooth_steering(self, wanted_angle: float, velocity: float) -> float:
-        step = self.steering_speed * self.calculate_delta_steering() * (1 - abs(velocity))
+        step = (
+            self.steering_speed * self.calculate_delta_steering() * (1 - abs(velocity))
+        )
         self.current_angle = self.move_toward(self.current_angle, wanted_angle, step)
         return self.current_angle
 
@@ -47,6 +52,6 @@ class Smoothing:
 
     def get_last_delta_steering(self) -> float:
         return self.last_delta_steering
-    
+
     def get_last_delta_speed(self) -> float:
         return self.last_delta_speed

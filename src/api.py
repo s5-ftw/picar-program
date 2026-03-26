@@ -104,9 +104,27 @@ def api_set_motor_speed(*args) -> None:
     _back_wheel.speed = speed
 
 
+static_last_distance_time: float = 0.0
+static_last_distance: float = 0.0
+
+
 def measure_distance() -> float:
     """Measure the distance using the ultrasonic sensor and return the distance in cm."""
-    return _distance_sensor.measure_distance()
+    global static_last_distance_time
+    global static_last_distance
+    now = time.time()
+
+    if static_last_distance_time == 0.0:
+        static_last_distance_time = now
+    else:
+        if now - static_last_distance_time < 0.05:
+            return static_last_distance
+        static_last_distance_time = now
+
+    dist = _distance_sensor.measure_distance() + 2.9
+    static_last_distance = dist
+    print(f"measure_distance: {dist}")
+    return dist
 
 
 def line_follower_read() -> list[int]:

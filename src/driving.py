@@ -9,10 +9,11 @@ from api import (
 from distances import Distances
 from Smoothing import Smoothing
 
-AVOID_DISTANCE = 10
+AVOID_DISTANCE = 25
 AVOID_DISTANCE_2 = 20
-STEERING_DISTANCE = 20
-STRAIGHT_DISTANCE = 10
+STEERING_DISTANCE = 18
+STEERING_DISTANCE_2 = 30
+STRAIGHT_DISTANCE = 25
 
 SPEED_FAST = 0.35
 SPEED_SLOW = 0.28
@@ -20,6 +21,8 @@ SPEED_SLOW = 0.28
 STEER_SHARP = 1.0
 STEER_SMOOTH = 0.25
 STEER_STRAIGHT = 0.0
+
+DEFAULT_SPEED_SPEED = 0.08
 
 
 class states(Enum):
@@ -78,11 +81,12 @@ class Avoider:
         GOING_FORWARD = 3
         RETURNING = 4
         FIND_LINE = 5
+        STOP_AT_OBJECT = 6
 
     current_state: states
 
     def __init__(self, smooth: Smoothing):
-        self.current_state = self.states.BACKUP
+        self.current_state = self.states.STOP_AT_OBJECT
         self.smoothing = smooth
         self.distances = Distances()
 
@@ -101,7 +105,17 @@ class Avoider:
 
         self.finished_avoid = False
 
+        # print(f"car state: {self.current_state.name}")
+
         match self.current_state:
+            case self.states.STOP_AT_OBJECT:
+                self.smoothing.set_speed_speed(0.2)
+                steer = STEER_STRAIGHT
+                speed = 0
+
+                if self.smoothing.get_current_speed() == 0:
+                    self.current_state = self.states.BACKUP
+
             case self.states.BACKUP:
                 steer = STEER_STRAIGHT
                 speed = -SPEED_SLOW
@@ -119,14 +133,14 @@ class Avoider:
             case self.states.TURN_RIGHT:
                 steer = STEER_SHARP
                 speed = SPEED_SLOW
+                distance = self.distances.update_distance(
+                    self.smoothing.get_current_speed(),
+                    self.smoothing.get_last_delta_speed(),
+                )
 
-                if (
-                    self.distances.update_distance(
-                        self.smoothing.get_current_speed(),
-                        self.smoothing.get_last_delta_speed(),
-                    )
-                    >= STEERING_DISTANCE
-                ):
+                print(f"TURN RIGHT distance: {distance}")
+
+                if distance >= STEERING_DISTANCE:
                     self.current_state = self.states.GOING_FORWARD
                     self.distances.reset_distance()
 
@@ -153,7 +167,7 @@ class Avoider:
                         self.smoothing.get_current_speed(),
                         self.smoothing.get_last_delta_speed(),
                     )
-                    >= STEERING_DISTANCE * 2
+                    >= STEERING_DISTANCE_2
                 ):
                     self.current_state = self.states.FIND_LINE
 
@@ -161,10 +175,14 @@ class Avoider:
                 steer = STEER_STRAIGHT
                 speed = SPEED_SLOW
                 if any(line_follower_read()):
-                    self.current_state = self.states.BACKUP
                     self.finished_avoid = True
 
         return (steer, speed)
+
+    def reset(self) -> None:
+        self.smoothing.set_speed_speed(DEFAULT_SPEED_SPEED)
+        self.distances.reset_distance()
+        self.current_state = self.states.STOP_AT_OBJECT
 
     def is_finished(
         self,
@@ -178,7 +196,7 @@ class machine:
         state: states,
     ):
         self.state = state
-        self.smoothing = Smoothing()
+        self.smoothing = Smoothing(speed_speed=DEFAULT_SPEED_SPEED)
         self.line_follower = LineFollower()
         self.avoider = Avoider(self.smoothing)
 
@@ -187,7 +205,8 @@ class machine:
     ):
 
         if self.state != states.FOLLOWING:
-            print(f"car state: {self.state.name}")
+            # print(f"car state: {self.state.name}")
+            pass
 
         if self.state == states.START:
             self.start_state()
@@ -216,7 +235,9 @@ class machine:
         set_steering(self.smoothing.smooth_steering(steer, speed))
         set_motor_speed(self.smoothing.smooth_speed(speed))
         if self.avoider.should_avoid():
+            print("following: going to avoid")
             self.state = states.AVOIDING
+            self.avoider.reset()
         if self.line_follower.stop:
             self.state = states.STOPPED
 
@@ -228,11 +249,13 @@ class machine:
         set_steering(self.smoothing.smooth_steering(steer, speed))
         set_motor_speed(self.smoothing.smooth_speed(speed))
         if self.avoider.is_finished():
+            print("avoiding: going to follow")
             self.state = states.FOLLOWING
 
     def stop_state(
         self,
     ) -> None:
+        self.smoothing.set_speed_speed(0.2)
         set_steering(self.smoothing.smooth_steering(STEER_STRAIGHT, 0.0))
         set_motor_speed(self.smoothing.smooth_speed(0.0))
         self.state = states.STOPPED
