@@ -1,10 +1,11 @@
 import time
 
 class Smoothing:
-    def __init__(self, steering_speed: float = 1.0):
+    def __init__(self, steering_speed: float = 0.5, speed_speed: float = 0.1):
         self.current_angle = 0.0
         self.current_speed = 0.0
         self.steering_speed = steering_speed
+        self.speed_speed = speed_speed
         self.last_time_steering = time.time()
         self.last_time_speed = time.time()
 
@@ -26,7 +27,7 @@ class Smoothing:
         return self.current_angle
     
     def smooth_speed(self, wanted_speed: float) -> float:
-        step = self.steering_speed * self.get_delta_speed()
+        step = self.speed_speed * self.get_delta_speed()
         self.current_speed = self.move_toward(self.current_speed, wanted_speed, step)
         return self.current_speed
 
