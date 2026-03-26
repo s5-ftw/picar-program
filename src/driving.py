@@ -10,6 +10,7 @@ from distances import Distances
 from Smoothing import Smoothing
 
 AVOID_DISTANCE = 25
+OBSTACLE_DISTANCE = 3
 AVOID_DISTANCE_2 = 20
 STEERING_DISTANCE = 18
 STEERING_DISTANCE_2 = 30
@@ -17,6 +18,7 @@ STRAIGHT_DISTANCE = 25
 
 SPEED_FAST = 0.35
 SPEED_SLOW = 0.28
+SPEED_VERY_SLOW = 0.12
 
 STEER_SHARP = 1.0
 STEER_SMOOTH = 0.25
@@ -75,7 +77,6 @@ class LineFollower:
 
 
 class Avoider:
-    finished_avoid = False
 
     class states(Enum):
         BACKUP = 0
@@ -85,16 +86,20 @@ class Avoider:
         RETURNING = 4
         FIND_LINE = 5
         STOP_AT_OBJECT = 6
+        ADJUST_TO_OBJECT = 7
 
     current_state: states
+    finished_avoid: bool
 
     def __init__(self, smooth: Smoothing):
         self.current_state = self.states.STOP_AT_OBJECT
         self.smoothing = smooth
         self.distances = Distances()
+        self.finished_avoid = False
+        self.adjust_distance_precision = 0.0
 
     def should_avoid(
-        self,
+        self
     ) -> bool:
         distance = measure_distance()
         if distance < AVOID_DISTANCE:
@@ -103,7 +108,7 @@ class Avoider:
             return False
 
     def avoid(
-        self,
+        self
     ) -> tuple[float, float]:
 
         self.finished_avoid = False
@@ -112,12 +117,29 @@ class Avoider:
 
         match self.current_state:
             case self.states.STOP_AT_OBJECT:
-                self.smoothing.set_speed_speed(0.2)
+                self.smoothing.set_speed_speed(0.2) # TODO maybe make that not run each time
                 steer = STEER_STRAIGHT
-                speed = 0
+                speed = SPEED_SLOW
 
-                if self.smoothing.get_current_speed() == 0:
-                    self.current_state = self.states.BACKUP
+                if self.smoothing.get_current_speed() < SPEED_VERY_SLOW:
+                    self.smoothing.set_speed_speed(1) # TODO maybe make that not run each time
+                    self.current_state = self.states.ADJUST_TO_OBJECT
+
+            case self.states.ADJUST_TO_OBJECT:
+                steer = STEER_STRAIGHT
+                speed = SPEED_VERY_SLOW
+
+                if abs(OBSTACLE_DISTANCE - measure_distance()) < self.adjust_distance_precision:
+                    # stop at the right place
+                    self.smoothing.current_speed = 0
+                    set_motor_speed(0)
+
+                    # reset speed speed
+                    self.smoothing.set_speed_speed(0.2) # TODO maybe make that not run each time
+                    self.current_state = self.states.IDLE
+
+                elif OBSTACLE_DISTANCE - measure_distance() < -self.adjust_distance_precision:
+                    speed = -SPEED_VERY_SLOW
 
             case self.states.BACKUP:
                 steer = STEER_STRAIGHT
