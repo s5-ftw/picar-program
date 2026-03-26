@@ -35,12 +35,17 @@ class LineFollower:
     ):
         self.steer = STEER_STRAIGHT
         self.speed: float = SPEED_FAST
+        self.stop = False
 
     def reaction(
         self,
     ) -> tuple[float, float]:
         res = line_follower_read()
         # print(f"line follower: {res}")
+
+        if res == [0, 0, 0, 0, 0]:
+            self.stop = True
+            return (STEER_STRAIGHT, 0.0)
 
         # get steering
         if res[0] == 1:
@@ -194,6 +199,8 @@ class machine:
         set_motor_speed(self.smoothing.smooth_speed(speed))
         if self.avoider.should_avoid():
             self.state = states.AVOIDING
+        if self.line_follower.stop:
+            self.state = states.STOPPED
 
     def avoid_state(
         self,
@@ -208,8 +215,8 @@ class machine:
     def stop_state(
         self,
     ) -> None:
-        set_steering(0)
-        set_motor_speed(0)
+        set_steering(self.smoothing.smooth_steering(STEER_STRAIGHT, 0.0))
+        set_motor_speed(self.smoothing.smooth_speed(0.0))
         self.state = states.STOPPED
 
 
