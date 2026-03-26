@@ -10,11 +10,11 @@ from Smoothing import Smoothing
 
 AVOID_DISTANCE = 10
 
-SPEED_FAST = 0.25
-SPEED_SLOW = 0.15
+SPEED_FAST = 0.35
+SPEED_SLOW = 0.28
 
 STEER_SHARP = 1.0
-STEER_SMOOTH = 0.5
+STEER_SMOOTH = 0.25
 STEER_STRAIGHT = 0.0
 
 
@@ -29,7 +29,8 @@ class LineFollower:
     def __init__(
         self,
     ):
-        pass
+        self.steer = STEER_STRAIGHT
+        self.speed: float = SPEED_FAST
 
     def reaction(
         self,
@@ -37,28 +38,25 @@ class LineFollower:
         res = line_follower_read()
         # print(f"line follower: {res}")
 
-        steer: float = STEER_STRAIGHT
-        speed: float = SPEED_FAST
-
         # get steering
         if res[0] == 1:
-            steer = -STEER_SHARP
+            self.steer = -STEER_SHARP
         elif res[4] == 1:
-            steer = STEER_SHARP
+            self.steer = STEER_SHARP
         elif res[1] == 1:
-            steer = -STEER_SMOOTH
+            self.steer = -STEER_SMOOTH
         elif res[3] == 1:
-            steer = STEER_SMOOTH
+            self.steer = STEER_SMOOTH
         elif res[2] == 1:
-            steer = STEER_STRAIGHT
+            self.steer = STEER_STRAIGHT
 
         # get speed
-        if abs(steer) > STEER_SMOOTH:
-            speed = SPEED_SLOW
+        if abs(self.steer) > STEER_SMOOTH:
+            self.speed = SPEED_SLOW
         else:
-            speed = SPEED_FAST
+            self.speed = SPEED_FAST
 
-        return (steer, speed)
+        return (self.steer, self.speed)
 
 
 class Avoider:
@@ -155,7 +153,9 @@ class machine:
     def loop(
         self,
     ):
-        # print(f"car state: {self.state.name}")
+
+        if self.state != states.FOLLOWING:
+            print(f"car state: {self.state.name}")
 
         if self.state == states.START:
             self.start_state()
@@ -180,9 +180,9 @@ class machine:
         self,
     ) -> None:
         steer, speed = self.line_follower.reaction()
-        print(f"steer: {steer}, speed: {speed}")
-        set_steering(str(self.smoothing.smooth_steering(steer, speed)))
-        set_motor_speed(str(self.smoothing.smooth_speed(speed)))
+        # print(f"steer: {steer}, speed: {speed}")
+        set_steering(self.smoothing.smooth_steering(steer, speed))
+        set_motor_speed(self.smoothing.smooth_speed(speed))
         if self.avoider.should_avoid():
             self.state = states.AVOIDING
 
@@ -190,17 +190,17 @@ class machine:
         self,
     ) -> None:
         steer, speed = self.avoider.avoid()
-        print(f"steer: {steer}, speed: {speed}")
-        set_steering(str(self.smoothing.smooth_steering(steer, speed)))
-        set_motor_speed(str(self.smoothing.smooth_speed(speed)))
+        # print(f"steer: {steer}, speed: {speed}")
+        set_steering(self.smoothing.smooth_steering(steer, speed))
+        set_motor_speed(self.smoothing.smooth_speed(speed))
         if self.avoider.is_finished():
             self.state = states.FOLLOWING
 
     def stop_state(
         self,
     ) -> None:
-        set_steering("0")
-        set_motor_speed("0")
+        set_steering(0)
+        set_motor_speed(0)
         self.state = states.STOPPED
 
 

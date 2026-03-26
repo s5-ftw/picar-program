@@ -14,7 +14,7 @@ GPIO.setmode(GPIO.BCM)
 
 _TRIG = 12
 _ECHO = 16
-_LINE_FOLLOWER_REFERENCE = [20, 20, 20, 20, 20]
+_LINE_FOLLOWER_REFERENCE = [18, 18, 18, 18, 18]
 
 
 class _UltrasonicSensor:
@@ -73,28 +73,57 @@ def setup():
 setup()
 
 
-def measure_distance(*args) -> float:
+def api_measure_distance(*args) -> float:
     """Measure the distance using the ultrasonic sensor and return the distance in cm."""
     return _distance_sensor.measure_distance()
 
 
-def line_follower_read(*args) -> list[int]:
+def api_line_follower_read(*args) -> list[int]:
     """Read the line follower sensor values (5 sensors) and return a list of 0s and 1s."""
     return _line_follower.read_digital()
 
 
-def set_steering(*args) -> None:
+def api_set_steering(*args) -> None:
     """Turn the steering wheel to the given angle (45, 135 degrees) based on the input value (-1 to 1)."""
     angleArg: str = args[0]
     angle: int = int((float(angleArg) * 45) + 90)  # from -1, 1 to 45, 135
     _front_wheel.turn(angle)
 
 
-def set_motor_speed(*args) -> None:
+def api_set_motor_speed(*args) -> None:
     """Set the motor speed (-100 to 100) based on the input value (-1 to 1)."""
     speedArg: float = float(args[0])
     # print(f"set_motor_speed: {speedArg}")
     # print(f"set_motor_speed: {float(speedArg)}")
+    if float(speedArg) < 0:
+        speedArg = abs(speedArg)
+        _back_wheel.backward()
+    else:
+        _back_wheel.forward()
+    speed: int = int(float(speedArg) * 100)  # from 0 to 1 to 0 to 100
+    _back_wheel.speed = speed
+
+
+def measure_distance() -> float:
+    """Measure the distance using the ultrasonic sensor and return the distance in cm."""
+    return _distance_sensor.measure_distance()
+
+
+def line_follower_read() -> list[int]:
+    """Read the line follower sensor values (5 sensors) and return a list of 0s and 1s."""
+    # print(f"line_follower_read: {_line_follower.read_analog()}")
+    return _line_follower.read_digital()
+
+
+def set_steering(angleArg: float) -> None:
+    """Turn the steering wheel to the given angle (45, 135 degrees) based on the input value (-1 to 1)."""
+    angle: int = int((float(angleArg) * 45) + 90)  # from -1, 1 to 45, 135
+    _front_wheel.turn(angle)
+
+
+def set_motor_speed(speedArg: float) -> None:
+    """Set the motor speed (-100 to 100) based on the input value (-1 to 1)."""
+    # print(f"set_motor_speed: {speedArg}")
     if float(speedArg) < 0:
         speedArg = abs(speedArg)
         _back_wheel.backward()
