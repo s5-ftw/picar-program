@@ -201,7 +201,7 @@ class Avoider:
     def reset(self) -> None:
         self.smoothing.set_speed_speed(DEFAULT_SPEED_SPEED)
         self.distances.reset_distance()
-        self.distance_array.clear()
+        
         self.current_state = self.states.STOP_AT_OBJECT
 
     def is_finished(
