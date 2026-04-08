@@ -1,3 +1,4 @@
+import time
 from enum import Enum
 
 from api import (
@@ -26,6 +27,8 @@ STEER_STRAIGHT = 0.0
 
 DEFAULT_SPEED_SPEED = 0.08
 
+TIME_BEFORE_CAN_STOP = 5
+
 
 class LineFollower:
     def __init__(
@@ -37,7 +40,9 @@ class LineFollower:
 
     @staticmethod
     def detect_t(res: list[int] | None = None) -> bool:
-
+        """
+        Return True if all line follower sensors are active.
+        """
         res = res if res is not None else line_follower_read()
 
         if res == [1, 1, 1, 1, 1]:
@@ -53,7 +58,7 @@ class LineFollower:
 
         if self.detect_t(res):
             self.stop = True
-            return (STEER_STRAIGHT, 0.0)
+            return (self.steer, self.speed)
 
         # get steering
         if res[0] == 1:
@@ -102,25 +107,21 @@ class Avoider:
         self.finished_avoid = False
         self.adjust_distance_precision = 0.0
 
-    def should_avoid(
-        self
-    ) -> bool:
+    def should_avoid(self) -> bool:
         if self.array_position < self.array_size - 1:
             self.distance_array[self.array_position] = measure_distance()
             self.array_position += 1
         else:
-            for i in range(self.array_size-1):
+            for i in range(self.array_size - 1):
                 self.distance_array[i] = self.distance_array[i]
             self.distance_array[self.array_position] = measure_distance()
-            
+
         if sum(self.distance_array) / self.array_position < DETECT_OBJECT_TO_AVOID:
             return True
         else:
             return False
 
-    def avoid(
-        self
-    ) -> tuple[float, float]:
+    def avoid(self) -> tuple[float, float]:
 
         self.finished_avoid = False
 
@@ -128,28 +129,40 @@ class Avoider:
 
         match self.current_state:
             case self.states.STOP_AT_OBJECT:
-                self.smoothing.set_speed_speed(0.2) # TODO maybe make that not run each time
+                self.smoothing.set_speed_speed(
+                    0.2
+                )  # TODO maybe make that not run each time
                 steer = STEER_STRAIGHT
                 speed = SPEED_SLOW
 
                 if self.smoothing.get_current_speed() < SPEED_VERY_SLOW:
-                    self.smoothing.set_speed_speed(1) # TODO maybe make that not run each time
+                    self.smoothing.set_speed_speed(
+                        1
+                    )  # TODO maybe make that not run each time
                     self.current_state = self.states.ADJUST_TO_OBJECT
 
             case self.states.ADJUST_TO_OBJECT:
                 steer = STEER_STRAIGHT
                 speed = SPEED_VERY_SLOW
 
-                if abs(DISTANCE_TO_STOP_AT_OBJECT - measure_distance()) < self.adjust_distance_precision:
+                if (
+                    abs(DISTANCE_TO_STOP_AT_OBJECT - measure_distance())
+                    < self.adjust_distance_precision
+                ):
                     # stop at the right place
                     self.smoothing.current_speed = 0
                     set_motor_speed(0)
 
                     # reset speed speed
-                    self.smoothing.set_speed_speed(0.2) # TODO maybe make that not run each time
+                    self.smoothing.set_speed_speed(
+                        0.2
+                    )  # TODO maybe make that not run each time
                     self.current_state = self.states.IDLE
 
-                elif DISTANCE_TO_STOP_AT_OBJECT - measure_distance() < -self.adjust_distance_precision:
+                elif (
+                    DISTANCE_TO_STOP_AT_OBJECT - measure_distance()
+                    < -self.adjust_distance_precision
+                ):
                     speed = -SPEED_VERY_SLOW
 
             case self.states.BACKUP:
@@ -235,7 +248,7 @@ class machine:
 
     def __init__(self):
         self.state = self.states.START
-        self.smoothing = Smoothing(speed_speed= 2.0)
+        self.smoothing = Smoothing(speed_speed=2.0)
         self.line_follower = LineFollower()
         self.avoider = Avoider(self.smoothing)
 
@@ -256,29 +269,38 @@ class machine:
         return
 
     def start_state(self) -> None:
+        """
+        while we detect the T, go forward.
+        When we detect no T, follow
+        """
+
         if self.line_follower.detect_t():
-            set_steering(self.smoothing.smooth_steering(STEER_STRAIGHT, SPEED_FAST))
+            set_steering(self.smoothing.smooth_steering(STEER_STRAIGHT))
             self.smoothing.smooth_speed(SPEED_FAST)
         else:
             self.state = self.states.FOLLOWING
+            self.start_T_time = time.time()
             self.smoothing.set_speed_speed(DEFAULT_SPEED_SPEED)
 
     def following_state(self) -> None:
         steer, speed = self.line_follower.reaction()
         # print(f"steer: {steer}, speed: {speed}")
-        set_steering(self.smoothing.smooth_steering(steer, speed))
+        set_steering(self.smoothing.smooth_steering(steer))
         set_motor_speed(self.smoothing.smooth_speed(speed))
         if self.avoider.should_avoid():
             print("following: going to avoid")
             self.state = self.states.AVOIDING
             self.avoider.reset()
         if self.line_follower.stop:
-            self.state = self.states.STOPPED
+            if time.time() - self.start_T_time > TIME_BEFORE_CAN_STOP:
+                self.state = self.states.STOPPED
+            else:
+                self.line_follower.stop = False
 
     def avoid_state(self) -> None:
         steer, speed = self.avoider.avoid()
         # print(f"steer: {steer}, speed: {speed}")
-        set_steering(self.smoothing.smooth_steering(steer, speed))
+        set_steering(self.smoothing.smooth_steering(steer))
         set_motor_speed(self.smoothing.smooth_speed(speed))
         if self.avoider.is_finished():
             print("avoiding: going to follow")
@@ -286,7 +308,7 @@ class machine:
 
     def stop_state(self) -> None:
         self.smoothing.set_speed_speed(0.2)
-        set_steering(self.smoothing.smooth_steering(STEER_STRAIGHT, 0.0))
+        set_steering(self.smoothing.smooth_steering(STEER_STRAIGHT))
         set_motor_speed(self.smoothing.smooth_speed(0.0))
         self.state = self.states.STOPPED
 

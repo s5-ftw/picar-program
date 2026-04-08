@@ -13,7 +13,16 @@ class Smoothing:
         self.last_delta_speed = 0.0
 
     def set_speed_speed(self, speed_speed: float):
+        """
+        Set the speed of changing the speed factor.
+        """
         self.speed_speed = speed_speed
+
+    def set_steering_speed(self, steering_speed: float):
+        """
+        Set the speed of changing the steering angle.
+        """
+        self.steering_speed = steering_speed
 
     def calculate_delta_steering(self) -> float:
         now = time.time()
@@ -27,14 +36,22 @@ class Smoothing:
         self.last_time_speed = now
         return self.last_delta_speed
 
-    def smooth_steering(self, wanted_angle: float, velocity: float) -> float:
+    def smooth_steering(self, wanted_angle: float) -> float:
+        """
+        Smoothly move the steering angle towards the wanted angle, taking into account the velocity.
+        """
         step = (
-            self.steering_speed * self.calculate_delta_steering() * (1 - abs(velocity))
+            self.steering_speed
+            * self.calculate_delta_steering()
+            * (1 - abs(self.current_speed))
         )
         self.current_angle = self.move_toward(self.current_angle, wanted_angle, step)
         return self.current_angle
 
     def smooth_speed(self, wanted_speed: float) -> float:
+        """
+        Smoothly change the speed towards the wanted speed.
+        """
         step = self.speed_speed * self.calculate_delta_speed()
         self.current_speed = self.move_toward(self.current_speed, wanted_speed, step)
         return self.current_speed
