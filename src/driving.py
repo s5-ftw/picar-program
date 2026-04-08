@@ -73,6 +73,9 @@ class LineFollower:
 
 class Avoider:
     finished_avoid = False
+    array_size = 5
+    array_position = 0
+    distance_array = [0.0] * array_size
 
     class states(Enum):
         BACKUP = 0
@@ -93,8 +96,15 @@ class Avoider:
     def should_avoid(
         self,
     ) -> bool:
-        distance = measure_distance()
-        if distance < AVOID_DISTANCE:
+        if self.position < self.array_size - 1:
+            self.distance_array[self.position] = measure_distance()
+            self.position += 1
+        else:
+            for i in range(self.array_size-1):
+                self.distance_array[i] = self.distance_array[i]
+            self.distance_array[self.array_position] = measure_distance()
+            
+        if sum(self.distance_array) / self.array_position < AVOID_DISTANCE:
             return True
         else:
             return False
