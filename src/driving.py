@@ -12,11 +12,12 @@ from distances import Distances
 from Smoothing import Smoothing
 
 DETECT_OBJECT_TO_AVOID = 25
-DISTANCE_TO_STOP_AT_OBJECT = 10
-DISTANCE_BACKING_UP_TO = 25
-TURNING_DISTANCE_OUTWARD_TRAVELED = 18
+DISTANCE_TO_STOP_AT_OBJECT = 15
+DISTANCE_BACKING_UP_TO = 30
+TURNING_DISTANCE_OUTWARD_TRAVELED = 35
 TURNING_DISTANCE_INWARD_TRAVELED = 30
-STRAIGHT_DISTANCE_TRAVELED = 25
+STRAIGHT_DISTANCE_TRAVELED = 30
+
 
 SPEED_FAST = 0.35
 SPEED_SLOW = 0.28
@@ -25,6 +26,7 @@ SPEED_VERY_SLOW = 0.12
 STEER_SHARP = 1.0
 STEER_SMOOTH = 0.25
 STEER_STRAIGHT = 0.0
+STEER_SMALL = 0.5
 
 DEFAULT_SPEED_SPEED = 0.08
 
@@ -164,7 +166,7 @@ class Avoider:
                     self.distances.reset_distance()
 
             case self.states.GOING_FORWARD:
-                steer = STEER_STRAIGHT
+                steer = -STEER_SMALL
                 speed = SPEED_SLOW
 
                 if (
