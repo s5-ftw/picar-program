@@ -1,4 +1,5 @@
 import time
+from collections import deque
 from enum import Enum
 
 from api import (
@@ -84,8 +85,6 @@ class LineFollower:
 class Avoider:
     finished_avoid = False
     array_size = 5
-    array_position = 0
-    distance_array = [0.0] * array_size
 
     class states(Enum):
         BACKUP = 0
@@ -108,15 +107,8 @@ class Avoider:
         self.adjust_distance_precision = 0.0
 
     def should_avoid(self) -> bool:
-        if self.array_position < self.array_size - 1:
-            self.distance_array[self.array_position] = measure_distance()
-            self.array_position += 1
-        else:
-            for i in range(self.array_size - 1):
-                self.distance_array[i] = self.distance_array[i]
-            self.distance_array[self.array_position] = measure_distance()
-
-        if sum(self.distance_array) / self.array_position < DETECT_OBJECT_TO_AVOID:
+        distance = measure_distance()
+        if distance < DETECT_OBJECT_TO_AVOID:
             return True
         else:
             return False
@@ -231,6 +223,7 @@ class Avoider:
     def reset(self) -> None:
         self.smoothing.set_speed_speed(DEFAULT_SPEED_SPEED)
         self.distances.reset_distance()
+        self.distance_array.clear()
         self.current_state = self.states.STOP_AT_OBJECT
 
     def is_finished(

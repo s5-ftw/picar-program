@@ -3,12 +3,10 @@ import time
 
 import RPi.GPIO as GPIO
 
-import utils
-import utils.PCF8591
 from utils.back_wheels import Back_Wheels
 from utils.front_wheels import Front_Wheels
 from utils.SunFounder_Line_Follower.Line_Follower import Line_Follower
-from utils.SunFounder_PCA9685 import PCA9685, Servo
+from utils.SunFounder_PCA9685 import PCA9685
 
 GPIO.setmode(GPIO.BCM)
 
