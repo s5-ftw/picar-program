@@ -9,12 +9,12 @@ from api import (
 from distances import Distances
 from Smoothing import Smoothing
 
-AVOID_DISTANCE = 25
-OBSTACLE_DISTANCE = 3
-AVOID_DISTANCE_2 = 20
-STEERING_DISTANCE = 18
-STEERING_DISTANCE_2 = 30
-STRAIGHT_DISTANCE = 25
+DETECT_OBJECT_TO_AVOID = 25
+DISTANCE_TO_STOP_AT_OBJECT = 10
+DISTANCE_BACKING_UP_TO = 25
+TURNING_DISTANCE_OUTWARD_TRAVELED = 18
+TURNING_DISTANCE_INWARD_TRAVELED = 30
+STRAIGHT_DISTANCE_TRAVELED = 25
 
 SPEED_FAST = 0.35
 SPEED_SLOW = 0.28
@@ -113,7 +113,7 @@ class Avoider:
                 self.distance_array[i] = self.distance_array[i]
             self.distance_array[self.array_position] = measure_distance()
             
-        if sum(self.distance_array) / self.array_position < AVOID_DISTANCE:
+        if sum(self.distance_array) / self.array_position < DETECT_OBJECT_TO_AVOID:
             return True
         else:
             return False
@@ -140,7 +140,7 @@ class Avoider:
                 steer = STEER_STRAIGHT
                 speed = SPEED_VERY_SLOW
 
-                if abs(OBSTACLE_DISTANCE - measure_distance()) < self.adjust_distance_precision:
+                if abs(DISTANCE_TO_STOP_AT_OBJECT - measure_distance()) < self.adjust_distance_precision:
                     # stop at the right place
                     self.smoothing.current_speed = 0
                     set_motor_speed(0)
@@ -149,14 +149,14 @@ class Avoider:
                     self.smoothing.set_speed_speed(0.2) # TODO maybe make that not run each time
                     self.current_state = self.states.IDLE
 
-                elif OBSTACLE_DISTANCE - measure_distance() < -self.adjust_distance_precision:
+                elif DISTANCE_TO_STOP_AT_OBJECT - measure_distance() < -self.adjust_distance_precision:
                     speed = -SPEED_VERY_SLOW
 
             case self.states.BACKUP:
                 steer = STEER_STRAIGHT
                 speed = -SPEED_SLOW
 
-                if measure_distance() >= AVOID_DISTANCE_2:
+                if measure_distance() >= DISTANCE_BACKING_UP_TO:
                     self.current_state = self.states.IDLE
 
             case self.states.IDLE:
@@ -176,7 +176,7 @@ class Avoider:
 
                 print(f"TURN RIGHT distance: {distance}")
 
-                if distance >= STEERING_DISTANCE:
+                if distance >= TURNING_DISTANCE_OUTWARD_TRAVELED:
                     self.current_state = self.states.GOING_FORWARD
                     self.distances.reset_distance()
 
@@ -189,7 +189,7 @@ class Avoider:
                         self.smoothing.get_current_speed(),
                         self.smoothing.get_last_delta_speed(),
                     )
-                    >= STRAIGHT_DISTANCE
+                    >= STRAIGHT_DISTANCE_TRAVELED
                 ):
                     self.current_state = self.states.RETURNING
                     self.distances.reset_distance()
@@ -203,7 +203,7 @@ class Avoider:
                         self.smoothing.get_current_speed(),
                         self.smoothing.get_last_delta_speed(),
                     )
-                    >= STEERING_DISTANCE_2
+                    >= TURNING_DISTANCE_INWARD_TRAVELED
                 ):
                     self.current_state = self.states.FIND_LINE
 
