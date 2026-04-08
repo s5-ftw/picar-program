@@ -38,7 +38,7 @@ class LineFollower:
     @staticmethod
     def detect_t(res: list[int] | None = None) -> bool:
 
-        res = line_follower_read() if res is None
+        res = res if res is not None else line_follower_read()
 
         if res == [1, 1, 1, 1, 1]:
             return True
@@ -77,6 +77,10 @@ class LineFollower:
 
 
 class Avoider:
+    finished_avoid = False
+    array_size = 5
+    array_position = 0
+    distance_array = [0.0] * array_size
 
     class states(Enum):
         BACKUP = 0
@@ -101,8 +105,15 @@ class Avoider:
     def should_avoid(
         self
     ) -> bool:
-        distance = measure_distance()
-        if distance < AVOID_DISTANCE:
+        if self.array_position < self.array_size - 1:
+            self.distance_array[self.array_position] = measure_distance()
+            self.array_position += 1
+        else:
+            for i in range(self.array_size-1):
+                self.distance_array[i] = self.distance_array[i]
+            self.distance_array[self.array_position] = measure_distance()
+            
+        if sum(self.distance_array) / self.array_position < AVOID_DISTANCE:
             return True
         else:
             return False
