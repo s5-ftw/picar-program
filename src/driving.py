@@ -121,41 +121,19 @@ class Avoider:
 
         match self.current_state:
             case self.states.STOP_AT_OBJECT:
-                self.smoothing.set_speed_speed(
-                    0.2
-                )  # TODO maybe make that not run each time
-                steer = STEER_STRAIGHT
-                speed = SPEED_SLOW
-
-                if self.smoothing.get_current_speed() < SPEED_VERY_SLOW:
-                    self.smoothing.set_speed_speed(
-                        1
-                    )  # TODO maybe make that not run each time
-                    self.current_state = self.states.ADJUST_TO_OBJECT
-
-            case self.states.ADJUST_TO_OBJECT:
+                self.smoothing.set_speed_speed(0.2)
                 steer = STEER_STRAIGHT
                 speed = SPEED_VERY_SLOW
 
-                if (
-                    abs(DISTANCE_TO_STOP_AT_OBJECT - measure_distance())
-                    < self.adjust_distance_precision
-                ):
-                    # stop at the right place
-                    self.smoothing.current_speed = 0
-                    set_motor_speed(0)
+                if measure_distance() < DISTANCE_TO_STOP_AT_OBJECT:
+                    self.current_state = self.states.BACKUP
 
-                    # reset speed speed
-                    self.smoothing.set_speed_speed(
-                        0.2
-                    )  # TODO maybe make that not run each time
-                    self.current_state = self.states.IDLE
+            case self.states.ADJUST_TO_OBJECT:
+                steer = STEER_STRAIGHT
+                speed = 0
 
-                elif (
-                    DISTANCE_TO_STOP_AT_OBJECT - measure_distance()
-                    < -self.adjust_distance_precision
-                ):
-                    speed = -SPEED_VERY_SLOW
+                if self.smoothing.get_current_speed() == 0:
+                    self.current_state = self.states.BACKUP
 
             case self.states.BACKUP:
                 steer = STEER_STRAIGHT
