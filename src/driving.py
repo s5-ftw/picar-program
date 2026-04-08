@@ -105,9 +105,9 @@ class Avoider:
     def should_avoid(
         self
     ) -> bool:
-        if self.position < self.array_size - 1:
-            self.distance_array[self.position] = measure_distance()
-            self.position += 1
+        if self.array_position < self.array_size - 1:
+            self.distance_array[self.array_position] = measure_distance()
+            self.array_position += 1
         else:
             for i in range(self.array_size-1):
                 self.distance_array[i] = self.distance_array[i]
