@@ -38,7 +38,7 @@ class LineFollower:
     @staticmethod
     def detect_t(res: list[int] | None = None) -> bool:
 
-        res = line_follower_read() if res is None
+        res = res if res is not None else line_follower_read()
 
         if res == [1, 1, 1, 1, 1]:
             return True
