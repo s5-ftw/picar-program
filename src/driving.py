@@ -239,7 +239,7 @@ class machine:
             self.following_state()
 
         elif self.state == self.states.AVOIDING:
-            self.avoid_state()
+            self.following_back_state()
 
         elif self.state == self.states.STOPPED:
             self.stop_state()
@@ -259,12 +259,41 @@ class machine:
             self.state = self.states.FOLLOWING
             self.start_T_time = time.time()
             self.smoothing.set_speed_speed(DEFAULT_SPEED_SPEED)
+    
+    def backward_state(self) -> None:
+        """
+        while we detect the T, go forward.
+        When we detect no T, follow
+        """
+
+        if self.line_follower.detect_t():
+            set_steering(self.smoothing.smooth_steering(STEER_STRAIGHT))
+            self.smoothing.smooth_speed(-SPEED_FAST)
+        else:
+            self.state = self.states.FOLLOWING
+            self.start_T_time = time.time()
+            self.smoothing.set_speed_speed(-DEFAULT_SPEED_SPEED)
 
     def following_state(self) -> None:
         steer, speed = self.line_follower.reaction()
         # print(f"steer: {steer}, speed: {speed}")
         set_steering(self.smoothing.smooth_steering(steer))
         set_motor_speed(self.smoothing.smooth_speed(speed))
+        if self.avoider.should_avoid():
+            print("following: going to avoid")
+            self.state = self.states.AVOIDING
+            self.avoider.reset()
+        if self.line_follower.stop:
+            if time.time() - self.start_T_time > TIME_BEFORE_CAN_STOP:
+                self.state = self.states.STOPPED
+            else:
+                self.line_follower.stop = False
+                
+    def following_back_state(self) -> None:
+        steer, speed = self.line_follower.reaction()
+        # print(f"steer: {steer}, speed: {speed}")
+        set_steering(STEER_STRAIGHT)
+        set_motor_speed(SPEED_SLOW)
         if self.avoider.should_avoid():
             print("following: going to avoid")
             self.state = self.states.AVOIDING
