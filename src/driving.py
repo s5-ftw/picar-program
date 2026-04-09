@@ -28,6 +28,7 @@ STEER_SHARP = 1.0
 STEER_SMOOTH = 0.25
 STEER_STRAIGHT = 0.0
 STEER_SMALL = 0.4
+STEER_VERY_SMALL_FINDING_LINE = 0.2
 
 DEFAULT_SPEED_SPEED = 0.08
 
@@ -192,9 +193,12 @@ class Avoider:
                     >= TURNING_DISTANCE_INWARD_TRAVELED
                 ):
                     self.current_state = self.states.FIND_LINE
+                    
+                if any(line_follower_read()):
+                    self.finished_avoid = True
 
             case self.states.FIND_LINE:
-                steer = STEER_STRAIGHT
+                steer = STEER_VERY_SMALL_FINDING_LINE
                 speed = SPEED_SLOW
                 if any(line_follower_read()):
                     self.finished_avoid = True
