@@ -14,13 +14,13 @@ from Smoothing import Smoothing
 DETECT_OBJECT_TO_AVOID = 30
 DISTANCE_TO_STOP_AT_OBJECT = 18
 DISTANCE_BACKING_UP_TO = 30
-TURNING_DISTANCE_OUTWARD_TRAVELED = 25
-TURNING_DISTANCE_INWARD_TRAVELED = 25
+TURNING_DISTANCE_OUTWARD_TRAVELED = 20
+TURNING_DISTANCE_INWARD_TRAVELED = 30
 STRAIGHT_DISTANCE_TRAVELED = 40
 
 
 # Original speed = 0.35
-SPEED_FAST = 0.29
+SPEED_FAST = 0.27
 SPEED_SLOW = 0.23 # 0.28
 SPEED_VERY_SLOW = 0.18
 
@@ -250,7 +250,6 @@ class machine:
         self.line_follower = LineFollower()
         self.avoider = Avoider(self.smoothing, self.line_follower)
         self.lost_line_start = None
-        self.back_up_to_line_start_time = None
         self.lost_line_stering = 0.0
 
     def loop(self):
@@ -354,17 +353,13 @@ class machine:
         set_steering(self.smoothing.smooth_steering(self.lost_line_stering))
         set_motor_speed(self.smoothing.smooth_speed(-SPEED_SLOW))
         
-        if any(line_follower_read()) and self.back_up_to_line_start_time == None:
-            self.back_up_to_line_start_time = time.time()
-            
-        if time.time() - self.start_T_time > TIME_ALLOWED_TO_LOST_LINE:
+        if any(line_follower_read()):
             self.state = self.states.IDLE_BEFORE_FOLLOWING
             self.lost_line_start = None
             
     def idle_before_following_state(self) -> None:
         set_steering(self.smoothing.smooth_steering(self.lost_line_stering))
         set_motor_speed(self.smoothing.smooth_speed(0.0))
-        self.back_up_to_line_start_time = None
         
         if any(line_follower_read()):
             self.state = self.states.FOLLOWING
