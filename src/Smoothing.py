@@ -1,5 +1,6 @@
 import time
 
+BIG_STEP = 0.1
 
 class Smoothing:
     def __init__(self, steering_speed: float = 4.0, speed_speed: float = 0.08):
@@ -54,6 +55,13 @@ class Smoothing:
         """
         step = self.speed_speed * self.calculate_delta_speed()
         self.current_speed = self.move_toward(self.current_speed, wanted_speed, step)
+        
+        if wanted_speed > BIG_STEP and self.current_speed < BIG_STEP:
+            self.current_speed = BIG_STEP
+            
+        if wanted_speed < -BIG_STEP and self.current_speed > -BIG_STEP:
+            self.current_speed = -BIG_STEP
+            
         return self.current_speed
 
     def move_toward(self, current: float, target: float, step: float) -> float:
