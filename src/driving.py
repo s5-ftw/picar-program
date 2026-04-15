@@ -370,13 +370,10 @@ class machine:
             if self.lost_line_start is None:
                 # start timer when line is first detected
                 self.lost_line_start = time.time()
-            elif time.time() - self.lost_line_start > 1:
+            elif time.time() - self.lost_line_start > 0.1:
                 # 1 second after detecting line
                 self.state = self.states.IDLE_BEFORE_FOLLOWING
                 self.lost_line_start = None
-        else:
-            # reset timer if the line disappears again
-            self.lost_line_start = None
             
     def idle_before_following_state(self) -> None:
         set_steering(self.smoothing.smooth_steering(self.lost_line_stering))
