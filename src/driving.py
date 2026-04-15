@@ -14,14 +14,14 @@ from Smoothing import Smoothing
 DETECT_OBJECT_TO_AVOID = 30
 DISTANCE_TO_STOP_AT_OBJECT = 18
 DISTANCE_BACKING_UP_TO = 30
-TURNING_DISTANCE_OUTWARD_TRAVELED = 20
+TURNING_DISTANCE_OUTWARD_TRAVELED = 22.5
 TURNING_DISTANCE_INWARD_TRAVELED = 30
 STRAIGHT_DISTANCE_TRAVELED = 40
 
 
 # Original speed = 0.35
-SPEED_FAST = 0.27
-SPEED_SLOW = 0.23 # 0.28
+SPEED_FAST = 0.35
+SPEED_SLOW = 0.24 # 0.28
 SPEED_VERY_SLOW = 0.18
 
 STEER_SHARP = 1.0
@@ -34,7 +34,7 @@ DEFAULT_SPEED_SPEED = 0.08
 
 TIME_BEFORE_CAN_STOP = 5
 
-TIME_ALLOWED_TO_LOST_LINE = 1.0
+TIME_ALLOWED_TO_LOST_LINE = 1.5
 
 #Positive steer is right, negative steer is left
 AVOID_TURN_DIRECTION = -1.3
@@ -148,6 +148,9 @@ class Avoider:
 
                 if measure_distance() < DISTANCE_TO_STOP_AT_OBJECT:
                     self.current_state = self.states.BACKUP
+                    
+                if measure_distance() > DETECT_OBJECT_TO_AVOID*1.5:
+                    self.current_state = self.states.FIND_LINE
 
             case self.states.ADJUST_TO_OBJECT:
                 steer = STEER_STRAIGHT
@@ -353,7 +356,8 @@ class machine:
         set_steering(self.smoothing.smooth_steering(self.lost_line_stering))
         set_motor_speed(self.smoothing.smooth_speed(-SPEED_SLOW))
         
-        if any(line_follower_read()):
+        res = line_follower_read()
+        if res == [0, 1, 0, 0, 0] or res == [0, 0, 0, 1, 0] or res == [0, 0, 1, 0, 0] or res == [1, 1, 0, 0, 0] or res == [0, 0, 0, 1, 1]:
             self.state = self.states.IDLE_BEFORE_FOLLOWING
             self.lost_line_start = None
             
