@@ -215,7 +215,7 @@ class Avoider:
                     self.finished_avoid = True
 
             case self.states.FIND_LINE:
-                steer = STEER_VERY_SMALL_FINDING_LINE * AVOID_TURN_DIRECTION
+                steer = (-STEER_VERY_SMALL_FINDING_LINE * AVOID_TURN_DIRECTION)
                 speed = SPEED_SLOW
                 if any(line_follower_read()):
                     self.finished_avoid = True
@@ -248,7 +248,7 @@ class machine:
         self.state = self.states.START
         self.smoothing = Smoothing(speed_speed=2.0)
         self.line_follower = LineFollower()
-        self.avoider = Avoider(self.smoothing)
+        self.avoider = Avoider(self.smoothing, self.line_follower)
         self.lost_line_start = None
         self.lost_line_stering = 0.0
 
