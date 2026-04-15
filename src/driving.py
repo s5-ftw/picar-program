@@ -357,8 +357,25 @@ class machine:
         set_motor_speed(self.smoothing.smooth_speed(-SPEED_SLOW))
         
         res = line_follower_read()
-        if res == [0, 1, 0, 0, 0] or res == [0, 0, 0, 1, 0] or res == [0, 0, 1, 0, 0] or res == [1, 1, 0, 0, 0] or res == [0, 0, 0, 1, 1]:
-            self.state = self.states.IDLE_BEFORE_FOLLOWING
+
+        found_line = res in (
+            [0,1,0,0,0],
+            [0,0,0,1,0],
+            [0,0,1,0,0],
+            [1,1,0,0,0],
+            [0,0,0,1,1]
+        )
+
+        if found_line:
+            if self.lost_line_start is None:
+                # start timer when line is first detected
+                self.lost_line_start = time.time()
+            elif time.time() - self.lost_line_start > 1:
+                # 1 second after detecting line
+                self.state = self.states.IDLE_BEFORE_FOLLOWING
+                self.lost_line_start = None
+        else:
+            # reset timer if the line disappears again
             self.lost_line_start = None
             
     def idle_before_following_state(self) -> None:
