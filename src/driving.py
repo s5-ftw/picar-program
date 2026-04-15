@@ -14,20 +14,20 @@ from Smoothing import Smoothing
 DETECT_OBJECT_TO_AVOID = 30
 DISTANCE_TO_STOP_AT_OBJECT = 18
 DISTANCE_BACKING_UP_TO = 30
-TURNING_DISTANCE_OUTWARD_TRAVELED = 30
+TURNING_DISTANCE_OUTWARD_TRAVELED = 25
 TURNING_DISTANCE_INWARD_TRAVELED = 25
 STRAIGHT_DISTANCE_TRAVELED = 40
 
 
 # Original speed = 0.35
-SPEED_FAST = 0.30
-SPEED_SLOW = 0.25 # 0.28
+SPEED_FAST = 0.27
+SPEED_SLOW = 0.23 # 0.28
 SPEED_VERY_SLOW = 0.18
 
 STEER_SHARP = 1.0
 STEER_SMOOTH = 0.25
 STEER_STRAIGHT = 0.0
-STEER_SMALL = 0.4
+STEER_SMALL = 0.5
 STEER_VERY_SMALL_FINDING_LINE = 0.2
 
 DEFAULT_SPEED_SPEED = 0.08
@@ -56,6 +56,9 @@ class LineFollower:
         res = res if res is not None else line_follower_read()
 
         if res == [1, 1, 1, 1, 1]:
+            return True
+        
+        if sum(res) >= 3:
             return True
 
         return False
