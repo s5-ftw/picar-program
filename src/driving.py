@@ -34,6 +34,11 @@ DEFAULT_SPEED_SPEED = 0.08
 
 TIME_BEFORE_CAN_STOP = 5
 
+TIME_ALLOWED_TO_LOST_LINE = 1.0
+
+#Positive steer is right, negative steer is left
+AVOID_TURN_DIRECTION = -1
+
 
 class LineFollower:
     def __init__(
@@ -84,6 +89,13 @@ class LineFollower:
             self.speed = SPEED_FAST
 
         return (self.steer, self.speed)
+    
+    def lostLine(self,) -> bool:
+        res = line_follower_read()
+        return res == [0, 0, 0, 0, 0]
+    
+    def getSteering(self,) -> float:
+        return self.steer
 
 
 class Avoider:
@@ -154,7 +166,7 @@ class Avoider:
                     self.distances.reset_distance()
 
             case self.states.TURN_RIGHT:
-                steer = STEER_SHARP
+                steer = STEER_SHARP * AVOID_TURN_DIRECTION
                 speed = SPEED_SLOW
                 distance = self.distances.update_distance(
                     self.smoothing.get_current_speed(),
@@ -168,7 +180,7 @@ class Avoider:
                     self.distances.reset_distance()
 
             case self.states.GOING_FORWARD:
-                steer = -STEER_SMALL
+                steer = -STEER_SMALL * AVOID_TURN_DIRECTION
                 speed = SPEED_SLOW
 
                 if (
@@ -182,7 +194,7 @@ class Avoider:
                     self.distances.reset_distance()
 
             case self.states.RETURNING:
-                steer = -STEER_SHARP
+                steer = -STEER_SHARP * AVOID_TURN_DIRECTION
                 speed = SPEED_SLOW
 
                 if (
@@ -198,7 +210,7 @@ class Avoider:
                     self.finished_avoid = True
 
             case self.states.FIND_LINE:
-                steer = STEER_VERY_SMALL_FINDING_LINE
+                steer = STEER_VERY_SMALL_FINDING_LINE * AVOID_TURN_DIRECTION
                 speed = SPEED_SLOW
                 if any(line_follower_read()):
                     self.finished_avoid = True
@@ -223,12 +235,16 @@ class machine:
         FOLLOWING = 1
         AVOIDING = 2
         STOPPED = 3
+        LOST_LINE = 4
+        BACK_UP_TO_LINE = 5
+        IDLE_BEFORE_FOLLOWING = 6
 
     def __init__(self):
         self.state = self.states.START
         self.smoothing = Smoothing(speed_speed=2.0)
         self.line_follower = LineFollower()
         self.avoider = Avoider(self.smoothing)
+        self.lost_line_start = None
 
     def loop(self):
 
@@ -243,6 +259,15 @@ class machine:
 
         elif self.state == self.states.STOPPED:
             self.stop_state()
+            
+        elif self.state == self.states.LOST_LINE:
+            self.lost_line_state()
+            
+        elif self.state == self.states.BACK_UP_TO_LINE:
+            self.back_up_to_line_state()
+        
+        elif self.state == self.states.IDLE_BEFORE_FOLLOWING:
+            self.idle_before_following_state()
 
         return
 
@@ -262,6 +287,21 @@ class machine:
 
     def following_state(self) -> None:
         steer, speed = self.line_follower.reaction()
+        lost_line = self.line_follower.lostLine()
+        
+        if lost_line:
+            if self.lost_line_start is None:
+                # start timer
+                self.lost_line_start = time.time()
+
+            elif time.time() - self.lost_line_start > TIME_ALLOWED_TO_LOST_LINE:
+                self.state = self.states.LOST_LINE
+                self.lost_line_start = None
+
+        else:
+            # reset timer if line is found again
+            self.lost_line_start = None
+            
         # print(f"steer: {steer}, speed: {speed}")
         set_steering(self.smoothing.smooth_steering(steer))
         set_motor_speed(self.smoothing.smooth_speed(speed))
@@ -289,6 +329,30 @@ class machine:
         set_steering(self.smoothing.smooth_steering(STEER_STRAIGHT))
         set_motor_speed(self.smoothing.smooth_speed(0.0))
         self.state = self.states.STOPPED
+        
+    def lost_line_state(self) -> None:
+        #set_steering(self.smoothing.smooth_steering(STEER_VERY_SMALL_FINDING_LINE))
+        set_motor_speed(self.smoothing.smooth_speed(0.0))
+        
+        if any(line_follower_read()):
+            self.state = self.states.FOLLOWING
+            self.lost_line_start = None
+            
+    def back_up_to_line_state(self) -> None:
+        set_steering(self.smoothing.smooth_steering(-self.line_follower.getSteering()))
+        set_motor_speed(self.smoothing.smooth_speed(-SPEED_SLOW))
+        
+        if any(line_follower_read()):
+            self.state = self.states.IDLE_BEFORE_FOLLOWING
+            self.lost_line_start = None
+            
+    def idle_before_following_state(self) -> None:
+        set_steering(self.smoothing.smooth_steering(STEER_STRAIGHT))
+        set_motor_speed(self.smoothing.smooth_speed(0.0))
+        
+        if any(line_follower_read()):
+            self.state = self.states.FOLLOWING
+            self.lost_line_start = None
 
 
 def main():
